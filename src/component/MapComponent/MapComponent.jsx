@@ -19,10 +19,32 @@ const MapComponent = ({ layers }) => {
       style: customMapConfig.style,
       center: customMapConfig.center,
       zoom: customMapConfig.zoom,
+      dragPan: false,
     });
-
+    // Set the maximum zoom level
+    map.setMaxZoom(20); // Set to a reasonable maximum zoom level (e.g., 20)
     setMapInstance(map); // Store the map instance in state
     map.on('load', () => {
+      // Add ArcGIS World Imagery layer
+      const arcGISUrl = 'https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer';
+  
+      // Add a raster source for the ArcGIS layer
+      map.addSource('arcgis-imagery', {
+        type: 'raster',
+        tiles: [
+          `${arcGISUrl}/export?bbox={bbox-epsg-3857}&bboxSR=3857&imageSR=3857&format=png&f=image`
+        ],
+        tileSize: 256,
+      });
+
+      // Add the ArcGIS layer to the map
+      map.addLayer({
+        id: 'arcgis-layer',
+        type: 'raster',
+        source: 'arcgis-imagery',
+        paint: {},
+      });
+
       // Loop through layers and add them to the map
       layers.forEach(layer => {
         map.addSource(layer.id, {

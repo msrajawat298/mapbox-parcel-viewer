@@ -19,6 +19,15 @@ export const layersConfig = [
       },
     },
     {
+      id: 'lines_streets',
+      data: 'https://raw.githubusercontent.com/openlayers/openlayers/refs/heads/main/examples/data/geojson/vienna-streets.geojson',
+      type: 'line',
+      paint: {
+        'line-color': 'blue',
+        'line-width': 2,
+      },
+    },
+    {
       id: 'points',
       data: 'https://raw.githubusercontent.com/openlayers/openlayers/refs/heads/main/examples/data/geojson/point-samples.geojson',
       type: 'circle',
@@ -27,6 +36,24 @@ export const layersConfig = [
         'circle-color': 'red',
       },
     },
-    // Add new layers here in the future
+    {
+      id: 'roads',
+      data: 'https://raw.githubusercontent.com/openlayers/openlayers/refs/heads/main/examples/data/geojson/roads-seoul.geojson',
+      type: 'line',
+      paint: {
+        'line-color': '#ff5733',
+        'line-width': 20,
+      },
+    },
+    {
+      id: 'polygons_switzerland',
+      data: 'https://raw.githubusercontent.com/openlayers/openlayers/refs/heads/main/examples/data/geojson/switzerland.geojson',
+      type: 'fill',
+      paint: {
+        'fill-color': '#ff785b',
+        'fill-opacity': 1,
+      },
+    },
   ];
+  
   
