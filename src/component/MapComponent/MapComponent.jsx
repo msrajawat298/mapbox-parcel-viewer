@@ -1,17 +1,20 @@
-// MapComponent.jsx
 import React, { useRef, useEffect, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
-import {customMapConfig} from '../../config/mapConfig';
+import { customMapConfig } from '../../config/mapConfig';
 import { setupPointPopup } from './setupPointPopup';
 import Marker from '../Marker/Marker';
+import LayerToggle from '../LayerToggle/LayerToggle'; // Import the LayerToggle component
+import LayersConfig from '../../config/layersConfig';
+import ArcgisLayersConfig from '../../config/arcgisConfig';
 
 mapboxgl.accessToken = process.env.REACT_APP_MAPBOXGL_ACCESS_TOKEN;
 
-const MapComponent = ({ layers }) => {
+const MapComponent = () => {
   const mapContainer = useRef(null);
   const [mapInstance, setMapInstance] = useState(null);
   const [centerCoordinates, setCenterCoordinates] = useState(customMapConfig.center); // Store center coordinates
+  const [layerVisibility, setLayerVisibility] = useState({}); // Track layer visibility state
 
   useEffect(() => {
     const map = new mapboxgl.Map({
@@ -19,34 +22,14 @@ const MapComponent = ({ layers }) => {
       style: customMapConfig.style,
       center: customMapConfig.center,
       zoom: customMapConfig.zoom,
-      dragPan: false,
     });
-    // Set the maximum zoom level
-    map.setMaxZoom(20); // Set to a reasonable maximum zoom level (e.g., 20)
-    setMapInstance(map); // Store the map instance in state
+
+    map.setMaxZoom(20); // Set max zoom level
+    setMapInstance(map);
+
     map.on('load', () => {
-      // Add ArcGIS World Imagery layer
-      const arcGISUrl = 'https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer';
-  
-      // Add a raster source for the ArcGIS layer
-      map.addSource('arcgis-imagery', {
-        type: 'raster',
-        tiles: [
-          `${arcGISUrl}/export?bbox={bbox-epsg-3857}&bboxSR=3857&imageSR=3857&format=png&f=image`
-        ],
-        tileSize: 256,
-      });
-
-      // Add the ArcGIS layer to the map
-      map.addLayer({
-        id: 'arcgis-layer',
-        type: 'raster',
-        source: 'arcgis-imagery',
-        paint: {},
-      });
-
-      // Loop through layers and add them to the map
-      layers.forEach(layer => {
+      // Initialize LayersConfig on the map
+      LayersConfig.forEach(layer => {
         map.addSource(layer.id, {
           type: 'geojson',
           data: layer.data,
@@ -57,24 +40,70 @@ const MapComponent = ({ layers }) => {
           type: layer.type,
           source: layer.id,
           paint: layer.paint,
+          layout: {
+            visibility: 'none', // Initially hide all layers
+          },
         });
 
-        // If the layer is points, set up popup interaction
+        // If the layer is points (circle type), set up the popup
         if (layer.type === 'circle') {
-          setupPointPopup(map, layer.id, mapboxgl);
+          setupPointPopup(map, layer.id, mapboxgl); // Call the setupPointPopup function
         }
+
+        // Initialize layer visibility state
+        setLayerVisibility(prev => ({
+          ...prev,
+          [layer.id]: false,
+        }));
+      });
+      // Load ArcGIS layers (from config)
+      ArcgisLayersConfig.forEach(layerConfig => {
+        map.addSource(layerConfig.id, layerConfig.source);
+
+        map.addLayer({
+          ...layerConfig.layer,
+          layout: {
+            visibility: 'none', // Initially hide all layers
+          },
+        });
+
+        // Initialize ArcGIS layer visibility state
+        setLayerVisibility(prev => ({
+          ...prev,
+          [layerConfig.id]: false,
+        }));
       });
       // Set center coordinates for the marker
       setCenterCoordinates(map.getCenter().toArray());
     });
 
     return () => map.remove();
-  }, [layers]);
+  }, [LayersConfig]);
 
-  return (<>
-          <div ref={mapContainer} style={{ width: '100%', height: '100vh' }} />
-          {mapInstance && <Marker map={mapInstance} coordinates={centerCoordinates} />} 
-        </>);
+  // Function to toggle layer visibility
+  const toggleLayer = (layerId) => {
+    if (!mapInstance) return;
+
+    const visibility = layerVisibility[layerId] ? 'none' : 'visible';
+    mapInstance.setLayoutProperty(layerId + '-layer', 'visibility', visibility);
+
+    // Update the visibility state
+    setLayerVisibility(prev => ({
+      ...prev,
+      [layerId]: !prev[layerId],
+    }));
+  };
+
+  return (
+    <>
+      <div ref={mapContainer} style={{ width: '100%', height: '100vh' }} />
+
+      {/* Use LayerToggle component */}
+      <LayerToggle layers={[...LayersConfig, ...ArcgisLayersConfig]}  layerVisibility={layerVisibility} toggleLayer={toggleLayer} />
+
+      {mapInstance && <Marker map={mapInstance} coordinates={centerCoordinates} />}
+    </>
+  );
 };
 
 export default MapComponent;
