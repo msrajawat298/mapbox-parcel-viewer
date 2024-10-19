@@ -1,6 +1,8 @@
 import React, { useRef, useEffect, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
+import MapboxDraw from '@mapbox/mapbox-gl-draw';
+import '@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css';
 import { customMapConfig } from '../../config/mapConfig';
 import { setupPointPopup } from './setupPointPopup';
 import Marker from '../Marker/Marker';
@@ -15,7 +17,7 @@ const MapComponent = () => {
   const [mapInstance, setMapInstance] = useState(null);
   const [centerCoordinates, setCenterCoordinates] = useState(customMapConfig.center); // Store center coordinates
   const [layerVisibility, setLayerVisibility] = useState({}); // Track layer visibility state
-
+  const [drawInstance, setDrawInstance] = useState(null);
   useEffect(() => {
     const map = new mapboxgl.Map({
       container: mapContainer.current,
@@ -26,6 +28,19 @@ const MapComponent = () => {
 
     map.setMaxZoom(20); // Set max zoom level
     setMapInstance(map);
+
+    // Initialize Mapbox Draw
+    const draw = new MapboxDraw({
+      displayControlsDefault: false,
+      controls: {
+        polygon: true,
+        trash: true,
+      },
+      defaultMode: 'draw_polygon',
+    });
+
+    map.addControl(draw);
+    setDrawInstance(draw);
 
     map.on('load', () => {
       // Initialize LayersConfig on the map
@@ -56,6 +71,7 @@ const MapComponent = () => {
           [layer.id]: false,
         }));
       });
+      
       // Load ArcGIS layers (from config)
       ArcgisLayersConfig.forEach(layerConfig => {
         map.addSource(layerConfig.id, layerConfig.source);
@@ -73,11 +89,32 @@ const MapComponent = () => {
           [layerConfig.id]: false,
         }));
       });
+
       // Set center coordinates for the marker
       setCenterCoordinates(map.getCenter().toArray());
     });
 
-    return () => map.remove();
+    // When a shape is drawn, get the features
+    map.on('draw.create', (e) => {
+      const data = draw.getAll(); // Get all drawn features
+      console.log('Drawn Data:', data);
+    
+      data.features.forEach(feature => {
+        console.log(`Coordinates of drawn shape:`, feature.geometry.coordinates);
+    
+        // Query features from the 'polygons' layer (or whichever layer you want to check)
+        const features = map.queryRenderedFeatures({
+          layers: ['polygons'], // Change to a valid layer ID like 'polygons', 'points', etc.
+        });
+    
+        console.log('Parcel Data:', features); // Features from the queried layer
+      });
+    });
+    
+
+    return () => {
+      map.remove();
+    };
   }, [LayersConfig]);
 
   // Function to toggle layer visibility
@@ -97,10 +134,7 @@ const MapComponent = () => {
   return (
     <>
       <div ref={mapContainer} style={{ width: '100%', height: '100vh' }} />
-
-      {/* Use LayerToggle component */}
       <LayerToggle layers={[...LayersConfig, ...ArcgisLayersConfig]}  layerVisibility={layerVisibility} toggleLayer={toggleLayer} />
-
       {mapInstance && <Marker map={mapInstance} coordinates={centerCoordinates} />}
     </>
   );
